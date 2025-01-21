@@ -12,6 +12,7 @@ dist
 dist-ssr
 *.local
 public/images
+public/images_1
 
 
 # Editor directories and files
