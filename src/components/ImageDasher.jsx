@@ -36,6 +36,7 @@ const ImageDasher = () => {
   const [round, setRound] = useState(0);
   const containerRef = useRef(null);
   const maxRounds = 10;
+  const [currentAnalysis, setCurrentAnalysis] = useState(null);
 
   const getCurrentOptions = () => {
     if (round >= maxRounds) return [];
@@ -68,6 +69,7 @@ const ImageDasher = () => {
       const selected = options[index];
       setSelectedPath(selected.path);
       setRound(round + 1);
+      setCurrentAnalysis(null);
     }
   };
 
@@ -101,7 +103,8 @@ const ImageDasher = () => {
 
   return (
     <div className="w-full min-h-screen bg-gray-900 flex items-center justify-center p-8">
-      <div className="w-full max-w-7xl">
+      {/* <div className="w-full max-w-7xl">*/}
+      <div className="w-full max-w-[85vw]">
         <div className="mb-4 flex justify-between items-center">
           <h1 className="text-2xl font-bold text-white">{prompts[selectedPrompt].title}</h1>
           <button 
@@ -109,6 +112,7 @@ const ImageDasher = () => {
               setSelectedPrompt(null);
               setSelectedPath('0000000000');
               setRound(0);
+              setCurrentAnalysis(null);
             }}
             className="text-white bg-gray-700 px-4 py-2 rounded hover:bg-gray-600 transition-colors duration-200"
           >
@@ -141,26 +145,31 @@ const ImageDasher = () => {
                     </ul>
                   </div>
                   <div className="text-sm mt-4">
-                    Move mouse up/down to select, left/right for speed
+                    Move mouse up/down to select.
                   </div>
                 </div>
               ) : (
                 <div className="text-lg">Selection complete!</div>
               )}
             </div>
-            <div className="mt-48">
+          </div>
+
+          {/* Center - Current image and analysis */}
+          <div className="flex-1 px-8">
+            <div className="relative">
               <img 
                 src={`/${prompts[selectedPrompt].imageFolder}/${selectedPath}.png`}
                 alt="Current selection"
                 className="w-full h-auto rounded-lg"
               />
-              <div className="mt-2 text-white text-sm">
+              <div className="mt-2 text-white text-sm text-center">
                 Selection path: {selectedPath}
               </div>
               
-              {/* Add Image Analysis Component */}
               <ImageAnalysis 
                 imageUrl={`/${prompts[selectedPrompt].imageFolder}/${selectedPath}.png`}
+                onAnalysisChange={setCurrentAnalysis}
+                currentAnalysis={currentAnalysis}
               />
             </div>
           </div>
