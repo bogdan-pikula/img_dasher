@@ -1,20 +1,15 @@
 import React, { useState, useCallback } from 'react';
-import ImageAnalysis from './ImageAnalysis';
 
 const ImageGenerationApp = () => {
   const [prompt, setPrompt] = useState('');
   const [currentImage, setCurrentImage] = useState(null);
-  const [currentPrompt, setCurrentPrompt] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
-  const [pendingAnalysis, setPendingAnalysis] = useState(false);
+  const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [error, setError] = useState(null);
-  const [analysisResult, setAnalysisResult] = useState(null);
 
   const generateImage = useCallback(async (promptText) => {
     setIsGenerating(true);
     setError(null);
-    setPendingAnalysis(false);
-    setAnalysisResult(null);
     
     try {
       const response = await fetch('http://localhost:8000/generate', {
@@ -36,8 +31,9 @@ const ImageGenerationApp = () => {
       const imageBlob = await response.blob();
       const imageUrl = URL.createObjectURL(imageBlob);
       setCurrentImage(imageUrl);
-      setCurrentPrompt(promptText);
-      setPendingAnalysis(true);
+      
+      // Analyze the image after generation
+      await analyzeImage(imageUrl);
     } catch (err) {
       setError(`Generation error: ${err.message}`);
     } finally {
@@ -45,60 +41,58 @@ const ImageGenerationApp = () => {
     }
   }, []);
 
+  const analyzeImage = async (imageUrl) => {
+    setIsAnalyzing(true);
+    try {
+      const imageResponse = await fetch(imageUrl);
+      const imageBlob = await imageResponse.blob();
+      
+      const formData = new FormData();
+      formData.append('file', imageBlob, 'image.png');
+      
+      const response = await fetch('http://localhost:8001/analyze', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) {
+        throw new Error('Analysis failed');
+      }
+      
+      const result = await response.json();
+      if (result.status === 'success' && result.refined_prompt) {
+        setPrompt(result.refined_prompt);
+      }
+    } catch (err) {
+      setError(`Analysis error: ${err.message}`);
+    } finally {
+      setIsAnalyzing(false);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!prompt.trim() || isGenerating) return;
     await generateImage(prompt);
   };
 
-  const handleAnalysisComplete = (analysisText, refinedPrompt) => {
-    setPendingAnalysis(false);
-    setAnalysisResult(analysisText);
-    if (refinedPrompt) {
-      setPrompt(refinedPrompt);
-    }
-  };
-
-  const highlightKeywords = (text) => {
-    if (!text) return null;
-    
-    const keywords = [
-      'lighting', 'angle', 'style', 'color', 'mood', 'composition',
-      'perspective', 'time', 'weather', 'season', 'texture', 'detail'
-    ];
-    
-    return text.split(' ').map((word, index) => {
-      const isKeyword = keywords.some(keyword => 
-        word.toLowerCase().includes(keyword.toLowerCase())
-      );
-      
-      return (
-        <span 
-          key={index} 
-          className={isKeyword ? 'text-blue-400 font-semibold' : ''}
-        >
-          {word}{' '}
-        </span>
-      );
-    });
-  };
-
   return (
     <div className="min-h-screen bg-gray-900 p-8">
       <div className="max-w-4xl mx-auto">
         <h1 className="text-3xl font-bold text-white mb-8 text-center">
-          Iterative Image Generation
+          Image Dasher - Iterative Image Generation
         </h1>
         
         <form onSubmit={handleSubmit} className="mb-8">
-          <div className="flex gap-4">
-            <input
-              type="text"
+          <div className="flex flex-col gap-4">
+            <textarea
               value={prompt}
               onChange={(e) => setPrompt(e.target.value)}
               placeholder="Enter your prompt..."
-              className="flex-1 px-4 py-2 rounded-lg bg-gray-800 text-white border border-gray-700 focus:border-blue-500 focus:outline-none"
+              className="w-full px-4 py-2 rounded-lg bg-gray-800 text-white border border-gray-700 focus:border-blue-500 focus:outline-none resize-y"
               disabled={isGenerating}
+              rows={3}
+              style={{ minHeight: '80px' }}
             />
             <button
               type="submit"
@@ -118,20 +112,18 @@ const ImageGenerationApp = () => {
 
         <div className="relative mb-8">
           {currentImage && (
-            <>
+            <div className="relative">
               <img
                 src={currentImage}
                 alt="Generated"
                 className="w-full h-auto rounded-lg shadow-lg"
               />
-              <ImageAnalysis
-                key={currentImage}
-                imageUrl={currentImage}
-                originalPrompt={currentPrompt}
-                onAnalysisComplete={handleAnalysisComplete}
-                shouldAnalyze={pendingAnalysis}
-              />
-            </>
+              {isAnalyzing && (
+                <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-lg">
+                  <div className="text-white">Analyzing image...</div>
+                </div>
+              )}
+            </div>
           )}
           
           {!currentImage && !isGenerating && (
@@ -148,15 +140,6 @@ const ImageGenerationApp = () => {
             </div>
           )}
         </div>
-
-        {analysisResult && (
-          <div className="bg-gray-800 p-6 rounded-lg">
-            <h2 className="text-xl font-bold text-white mb-4">Analysis Result</h2>
-            <div className="text-gray-300">
-              {highlightKeywords(analysisResult)}
-            </div>
-          </div>
-        )}
       </div>
     </div>
   );

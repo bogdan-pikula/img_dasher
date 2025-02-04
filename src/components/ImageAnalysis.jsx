@@ -4,18 +4,6 @@ const ImageAnalysis = ({ imageUrl, originalPrompt, onAnalysisComplete, shouldAna
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const extractPromptAndAnalysis = (result) => {
-    try {
-      const fullAnalysis = result.description;
-      const promptMatch = fullAnalysis.match(/prompt that would be used to generate this image[:\s]+([^.]+)/i);
-      const refinedPrompt = promptMatch ? promptMatch[1].trim() : null;
-      return { analysis: fullAnalysis, prompt: refinedPrompt };
-    } catch (err) {
-      console.error('Error extracting prompt:', err);
-      return { analysis: null, prompt: null };
-    }
-  };
-
   useEffect(() => {
     let isMounted = true;
     let controller = new AbortController();
@@ -46,11 +34,8 @@ const ImageAnalysis = ({ imageUrl, originalPrompt, onAnalysisComplete, shouldAna
         
         const result = await response.json();
         
-        if (isMounted) {
-          const { analysis, prompt } = extractPromptAndAnalysis(result);
-          if (analysis || prompt) {
-            onAnalysisComplete(analysis, prompt);
-          }
+        if (isMounted && result.status === 'success') {
+          onAnalysisComplete(result.data);
         }
       } catch (err) {
         if (err.name === 'AbortError') {
