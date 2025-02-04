@@ -6,13 +6,9 @@ const ImageAnalysis = ({ imageUrl, originalPrompt, onAnalysisComplete, shouldAna
 
   const extractPromptAndAnalysis = (result) => {
     try {
-      // Extract the full analysis text
       const fullAnalysis = result.description;
-      
-      // Extract the refined prompt
       const promptMatch = fullAnalysis.match(/prompt that would be used to generate this image[:\s]+([^.]+)/i);
       const refinedPrompt = promptMatch ? promptMatch[1].trim() : null;
-      
       return { analysis: fullAnalysis, prompt: refinedPrompt };
     } catch (err) {
       console.error('Error extracting prompt:', err);
@@ -21,8 +17,11 @@ const ImageAnalysis = ({ imageUrl, originalPrompt, onAnalysisComplete, shouldAna
   };
 
   useEffect(() => {
+    let isMounted = true;
+    let controller = new AbortController();
+
     const analyzeImage = async () => {
-      if (!shouldAnalyze || !imageUrl || !originalPrompt) return;
+      if (!shouldAnalyze || !imageUrl || !originalPrompt || loading) return;
       
       setLoading(true);
       setError(null);
@@ -38,6 +37,7 @@ const ImageAnalysis = ({ imageUrl, originalPrompt, onAnalysisComplete, shouldAna
         const response = await fetch('http://localhost:8001/analyze', {
           method: 'POST',
           body: formData,
+          signal: controller.signal
         });
         
         if (!response.ok) {
@@ -45,19 +45,33 @@ const ImageAnalysis = ({ imageUrl, originalPrompt, onAnalysisComplete, shouldAna
         }
         
         const result = await response.json();
-        const { analysis, prompt } = extractPromptAndAnalysis(result);
         
-        if (analysis || prompt) {
-          onAnalysisComplete(analysis, prompt);
+        if (isMounted) {
+          const { analysis, prompt } = extractPromptAndAnalysis(result);
+          if (analysis || prompt) {
+            onAnalysisComplete(analysis, prompt);
+          }
         }
       } catch (err) {
-        setError(err.message);
+        if (err.name === 'AbortError') {
+          return;
+        }
+        if (isMounted) {
+          setError(err.message);
+        }
       } finally {
-        setLoading(false);
+        if (isMounted) {
+          setLoading(false);
+        }
       }
     };
 
     analyzeImage();
+
+    return () => {
+      isMounted = false;
+      controller.abort();
+    };
   }, [imageUrl, originalPrompt, shouldAnalyze, onAnalysisComplete]);
 
   if (!shouldAnalyze) return null;
