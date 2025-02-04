@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-const ImageAnalysis = ({ imageUrl, onAnalysisComplete, shouldAnalyze }) => {
+const ImageAnalysis = ({ imageUrl, originalPrompt, onAnalysisComplete, shouldAnalyze }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
@@ -22,7 +22,7 @@ const ImageAnalysis = ({ imageUrl, onAnalysisComplete, shouldAnalyze }) => {
 
   useEffect(() => {
     const analyzeImage = async () => {
-      if (!shouldAnalyze || !imageUrl) return;
+      if (!shouldAnalyze || !imageUrl || !originalPrompt) return;
       
       setLoading(true);
       setError(null);
@@ -33,6 +33,7 @@ const ImageAnalysis = ({ imageUrl, onAnalysisComplete, shouldAnalyze }) => {
         
         const formData = new FormData();
         formData.append('file', imageBlob, 'image.png');
+        formData.append('original_prompt', originalPrompt);
         
         const response = await fetch('http://localhost:8001/analyze', {
           method: 'POST',
@@ -57,7 +58,7 @@ const ImageAnalysis = ({ imageUrl, onAnalysisComplete, shouldAnalyze }) => {
     };
 
     analyzeImage();
-  }, [imageUrl, shouldAnalyze, onAnalysisComplete]);
+  }, [imageUrl, originalPrompt, shouldAnalyze, onAnalysisComplete]);
 
   if (!shouldAnalyze) return null;
 

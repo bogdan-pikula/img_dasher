@@ -4,6 +4,7 @@ import ImageAnalysis from './ImageAnalysis';
 const ImageGenerationApp = () => {
   const [prompt, setPrompt] = useState('');
   const [currentImage, setCurrentImage] = useState(null);
+  const [currentPrompt, setCurrentPrompt] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
   const [pendingAnalysis, setPendingAnalysis] = useState(false);
   const [error, setError] = useState(null);
@@ -35,7 +36,8 @@ const ImageGenerationApp = () => {
       const imageBlob = await response.blob();
       const imageUrl = URL.createObjectURL(imageBlob);
       setCurrentImage(imageUrl);
-      setPendingAnalysis(true); // Trigger analysis after new image is set
+      setCurrentPrompt(promptText);
+      setPendingAnalysis(true);
     } catch (err) {
       setError(`Generation error: ${err.message}`);
     } finally {
@@ -123,8 +125,9 @@ const ImageGenerationApp = () => {
                 className="w-full h-auto rounded-lg shadow-lg"
               />
               <ImageAnalysis
-                key={currentImage} // Force new instance on image change
+                key={currentImage}
                 imageUrl={currentImage}
+                originalPrompt={currentPrompt}
                 onAnalysisComplete={handleAnalysisComplete}
                 shouldAnalyze={pendingAnalysis}
               />
