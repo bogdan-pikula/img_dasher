@@ -5,11 +5,15 @@ const ImageGenerationApp = () => {
   const [prompt, setPrompt] = useState('');
   const [currentImage, setCurrentImage] = useState(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [pendingAnalysis, setPendingAnalysis] = useState(false);
   const [error, setError] = useState(null);
+  const [analysisResult, setAnalysisResult] = useState(null);
 
   const generateImage = useCallback(async (promptText) => {
     setIsGenerating(true);
     setError(null);
+    setPendingAnalysis(false);
+    setAnalysisResult(null);
     
     try {
       const response = await fetch('http://localhost:8000/generate', {
@@ -31,6 +35,7 @@ const ImageGenerationApp = () => {
       const imageBlob = await response.blob();
       const imageUrl = URL.createObjectURL(imageBlob);
       setCurrentImage(imageUrl);
+      setPendingAnalysis(true); // Trigger analysis after new image is set
     } catch (err) {
       setError(`Generation error: ${err.message}`);
     } finally {
@@ -44,10 +49,36 @@ const ImageGenerationApp = () => {
     await generateImage(prompt);
   };
 
-  const handleAnalysisComplete = (refinedPrompt) => {
+  const handleAnalysisComplete = (analysisText, refinedPrompt) => {
+    setPendingAnalysis(false);
+    setAnalysisResult(analysisText);
     if (refinedPrompt) {
       setPrompt(refinedPrompt);
     }
+  };
+
+  const highlightKeywords = (text) => {
+    if (!text) return null;
+    
+    const keywords = [
+      'lighting', 'angle', 'style', 'color', 'mood', 'composition',
+      'perspective', 'time', 'weather', 'season', 'texture', 'detail'
+    ];
+    
+    return text.split(' ').map((word, index) => {
+      const isKeyword = keywords.some(keyword => 
+        word.toLowerCase().includes(keyword.toLowerCase())
+      );
+      
+      return (
+        <span 
+          key={index} 
+          className={isKeyword ? 'text-blue-400 font-semibold' : ''}
+        >
+          {word}{' '}
+        </span>
+      );
+    });
   };
 
   return (
@@ -83,7 +114,7 @@ const ImageGenerationApp = () => {
           </div>
         )}
 
-        <div className="relative">
+        <div className="relative mb-8">
           {currentImage && (
             <>
               <img
@@ -92,8 +123,10 @@ const ImageGenerationApp = () => {
                 className="w-full h-auto rounded-lg shadow-lg"
               />
               <ImageAnalysis
+                key={currentImage} // Force new instance on image change
                 imageUrl={currentImage}
                 onAnalysisComplete={handleAnalysisComplete}
+                shouldAnalyze={pendingAnalysis}
               />
             </>
           )}
@@ -112,6 +145,15 @@ const ImageGenerationApp = () => {
             </div>
           )}
         </div>
+
+        {analysisResult && (
+          <div className="bg-gray-800 p-6 rounded-lg">
+            <h2 className="text-xl font-bold text-white mb-4">Analysis Result</h2>
+            <div className="text-gray-300">
+              {highlightKeywords(analysisResult)}
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -1,41 +1,29 @@
 import React, { useState, useEffect } from 'react';
 
-const ImageAnalysis = ({ imageUrl, onAnalysisComplete }) => {
+const ImageAnalysis = ({ imageUrl, onAnalysisComplete, shouldAnalyze }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
-  const extractPrompt = (analysisText) => {
-    // Extract the refined prompt from the analysis text
-    // This is a simple implementation - you might want to make it more robust
-    const promptMatch = analysisText.match(/prompt that would be used to generate this image[:\s]+([^.]+)/i);
-    return promptMatch ? promptMatch[1].trim() : null;
-  };
-
-  const highlightKeywords = (prompt) => {
-    // Split the prompt into words and highlight key parameters
-    const keywords = [
-      'lighting', 'angle', 'style', 'color', 'mood', 'composition',
-      'perspective', 'time', 'weather', 'season', 'texture', 'detail'
-    ];
-    
-    return prompt.split(' ').map((word, index) => {
-      const isKeyword = keywords.some(keyword => 
-        word.toLowerCase().includes(keyword.toLowerCase())
-      );
+  const extractPromptAndAnalysis = (result) => {
+    try {
+      // Extract the full analysis text
+      const fullAnalysis = result.description;
       
-      return (
-        <span 
-          key={index} 
-          className={isKeyword ? 'text-blue-400 font-semibold' : ''}
-        >
-          {word}{' '}
-        </span>
-      );
-    });
+      // Extract the refined prompt
+      const promptMatch = fullAnalysis.match(/prompt that would be used to generate this image[:\s]+([^.]+)/i);
+      const refinedPrompt = promptMatch ? promptMatch[1].trim() : null;
+      
+      return { analysis: fullAnalysis, prompt: refinedPrompt };
+    } catch (err) {
+      console.error('Error extracting prompt:', err);
+      return { analysis: null, prompt: null };
+    }
   };
 
   useEffect(() => {
     const analyzeImage = async () => {
+      if (!shouldAnalyze || !imageUrl) return;
+      
       setLoading(true);
       setError(null);
       
@@ -56,10 +44,10 @@ const ImageAnalysis = ({ imageUrl, onAnalysisComplete }) => {
         }
         
         const result = await response.json();
-        const refinedPrompt = extractPrompt(result.description);
+        const { analysis, prompt } = extractPromptAndAnalysis(result);
         
-        if (refinedPrompt) {
-          onAnalysisComplete(refinedPrompt);
+        if (analysis || prompt) {
+          onAnalysisComplete(analysis, prompt);
         }
       } catch (err) {
         setError(err.message);
@@ -68,10 +56,10 @@ const ImageAnalysis = ({ imageUrl, onAnalysisComplete }) => {
       }
     };
 
-    if (imageUrl) {
-      analyzeImage();
-    }
-  }, [imageUrl, onAnalysisComplete]);
+    analyzeImage();
+  }, [imageUrl, shouldAnalyze, onAnalysisComplete]);
+
+  if (!shouldAnalyze) return null;
 
   return (
     <div className="absolute inset-0 flex items-center justify-center">
